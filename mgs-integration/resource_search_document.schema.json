@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whitecherrychan.github.io/index/mgs/resource-search-document-v1.json",
+  "title": "MGS Resource Search Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "resource_type",
+    "resource_id",
+    "title",
+    "subtitle",
+    "virtual_path",
+    "tags",
+    "media_type",
+    "status_badges",
+    "summary_fields",
+    "available_actions"
+  ],
+  "properties": {
+    "schema_version": {"const": "mgs-resource-search-v1"},
+    "resource_type": {"type": "string", "enum": ["file", "directory", "encryption_record", "integrity", "recovery", "archive"]},
+    "resource_id": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "title": {"type": "string", "maxLength": 500},
+    "subtitle": {"type": "string", "maxLength": 1000},
+    "virtual_path": {"type": "string", "maxLength": 2000},
+    "tags": {"type": "array", "items": {"type": "string", "maxLength": 100}, "maxItems": 100},
+    "media_type": {"type": "string", "maxLength": 200},
+    "status_badges": {"type": "array", "items": {"type": "string", "maxLength": 100}, "maxItems": 50},
+    "summary_fields": {"type": "object", "additionalProperties": {"type": "string", "maxLength": 1000}, "maxProperties": 50},
+    "available_actions": {"type": "array", "items": {"type": "string", "enum": ["show_details", "open_location", "copy_display_name", "show_integrity_status", "show_recovery_status"]}, "maxItems": 10}
+  }
+}
