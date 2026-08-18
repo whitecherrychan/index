@@ -80,6 +80,28 @@ class ProjectionTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             validate_document(document)
 
+    def test_cjk_substring_search(self):
+        build_projection(self.source, self.database)
+        rows = search_projection(self.database, "测试")
+        self.assertEqual(len(rows), 1)
+        rows = search_projection(self.database, "PAR2 测试")
+        self.assertEqual(len(rows), 1)
+        rows = search_projection(self.database, "不存在词")
+        self.assertEqual(rows, [])
+
+    def test_mixed_ascii_and_cjk_query(self):
+        build_projection(self.source, self.database)
+        rows = search_projection(self.database, "PAR2 冗余")
+        self.assertEqual(len(rows), 1)
+        rows = search_projection(self.database, "PAR2 无关词")
+        self.assertEqual(rows, [])
+
+    def test_fts_query_injection_is_contained(self):
+        build_projection(self.source, self.database)
+        # 用户输入的引号被剥离，恶意 FTS 语法退化为字面短语 AND 组合
+        rows = search_projection(self.database, '"PAR2" OR 1=1')
+        self.assertEqual(rows, [])
+
 
 if __name__ == "__main__":
     unittest.main()

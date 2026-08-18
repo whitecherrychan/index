@@ -197,12 +197,43 @@ def build_projection(source, destination):
             temporary.unlink(missing_ok=True)
 
 
+def _has_cjk(text):
+    return any(ord(ch) >= 0x2E80 for ch in text)
+
+
 def search_projection(database, query):
+    """混合检索：ASCII 词走 FTS5 MATCH，CJK 词走 LIKE 子串匹配。
+
+    FTS5 默认 unicode61 分词器把连续中文视为单 token，无法做子串命中，
+    因此含中文的查询改用 LIKE 兜底（当前数据规模下性能足够）。
+    """
+    tokens = [token for token in query.split() if token]
+    if not tokens:
+        return []
+    fts_tokens = [token.replace('"', "") for token in tokens if not _has_cjk(token)]
+    fts_tokens = [token for token in fts_tokens if token]
+    like_tokens = [token for token in tokens if _has_cjk(token)]
+    if not fts_tokens and not like_tokens:
+        return []
+    conditions = []
+    params = []
+    if fts_tokens:
+        match_expr = " AND ".join(f'"{token}"' for token in fts_tokens)
+        conditions.append(
+            "rowid IN (SELECT rowid FROM resources_fts WHERE resources_fts MATCH ?)"
+        )
+        params.append(match_expr)
+    for token in like_tokens:
+        conditions.append(
+            "(title LIKE ? OR subtitle LIKE ? OR virtual_path LIKE ? OR tags LIKE ? OR summary LIKE ?)"
+        )
+        like = f"%{token}%"
+        params.extend([like] * 5)
     connection = sqlite3.connect(database)
     rows = connection.execute(
         "SELECT resource_id, resource_type, title, subtitle, virtual_path, tags, status_badges, available_actions "
-        "FROM resources WHERE rowid IN (SELECT rowid FROM resources_fts WHERE resources_fts MATCH ?)",
-        (query,),
+        f"FROM resources WHERE {' AND '.join(conditions)}",
+        params,
     ).fetchall()
     connection.close()
     return rows
